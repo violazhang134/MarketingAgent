@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  /* Premium Dark Theme */
+  --obsidian: #0a0a0a;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Accents */
+  --indigo-pop: #6366f1;
+  --cyan-pop: #06b6d4;
+  --success: #10b981;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+}
+
+@theme inline {
+  --color-obsidian: var(--obsidian);
+  --color-glass: var(--glass);
+  --color-glass-hover: var(--glass-hover);
+  --color-glass-border: var(--glass-border);
+  --color-indigo-pop: var(--indigo-pop);
+  --color-cyan-pop: var(--cyan-pop);
+  --color-success: var(--success);
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background-color: var(--obsidian);
+  color: var(--text-primary);
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 15s ease-in-out infinite;
+}
+
