@@ -8,9 +8,12 @@ import {
   TrendingUp, Bell
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { useCampaignStore, ExperimentConfig } from "@/lib/stores/campaign-store";
+import { useCampaignStore } from "@/lib/stores/campaign-store";
+import type { ExperimentConfig, CampaignPhase } from "@/lib/stores/campaign-store";
 import { cn } from "@/lib/utils";
 import { CompetitorReportView } from "@/components/report/competitor-report-view";
+import { MarkieAvatar } from "@/components/ui/markie-avatar";
+import type { MarkieState } from "@/components/ui/markie-avatar";
 
 // ========================================
 // 辅助子组件
@@ -44,6 +47,20 @@ export default function AgentModePage() {
     runAgentWorkflow, generateAssetsWorkflow 
   } = useCampaignStore();
 
+  const effectivePhase: CampaignPhase =
+    phase === 'idle' || phase === 'chatting' || phase === 'analyzing'
+      ? 'input'
+      : phase;
+
+  const markieState: MarkieState =
+    effectivePhase === 'running'
+      ? 'channeling'
+      : effectivePhase === 'review'
+      ? 'magic'
+      : effectivePhase === 'complete'
+      ? 'mischief'
+      : 'idle';
+
   // 跳转到素材工作室
   const goToStudio = () => {
     router.push('/create/studio');
@@ -56,11 +73,11 @@ export default function AgentModePage() {
 
   return (
     <div className="min-h-screen p-6 flex flex-col items-center justify-center pb-32">
-      <div className={`w-full transition-all duration-500 space-y-8 ${phase === 'review' ? 'max-w-7xl' : 'max-w-2xl'}`}>
+      <div className={`w-full transition-all duration-500 space-y-8 ${effectivePhase === 'review' ? 'max-w-7xl' : 'max-w-2xl'}`}>
         
         {/* ====== 输入阶段 ====== */}
         <AnimatePresence mode="wait">
-          {phase === 'input' && (
+          {effectivePhase === 'input' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -83,18 +100,21 @@ export default function AgentModePage() {
                 </motion.div>
               )}
               
-              {/* Header */}
               <div className="text-center space-y-4">
                 <motion.div 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 mx-auto flex items-center justify-center shadow-2xl shadow-indigo-500/30"
+                  className="mx-auto inline-block"
                 >
-                  <Bot className="w-10 h-10 text-white" />
+                  <MarkieAvatar state={markieState} size={88} />
                 </motion.div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/60 mt-2">
+                  <Sparkles className="w-3 h-3 text-indigo-300" />
+                  <span>Markie · AI 创意伴侣</span>
+                </div>
                 <h1 className="text-3xl font-bold">Agent 一键模式</h1>
-                <p className="text-white/50 max-w-md mx-auto">
-                  告诉我竞品和你的产品，我会自动分析并为你生成可直接投放的广告素材包
+                <p className="text-white/60 max-w-md mx-auto text-sm">
+                  把竞品和你的产品告诉我，我会从广告池和评论里挖出灵感，再帮你种成一整套可以直接投放的素材包。
                 </p>
               </div>
 
@@ -162,7 +182,7 @@ export default function AgentModePage() {
 
         {/* ====== 执行阶段 ====== */}
         <AnimatePresence>
-          {phase === 'running' && (
+          {effectivePhase === 'running' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -186,7 +206,7 @@ export default function AgentModePage() {
                   />
                 ))}
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 relative z-10">
-                  <Bot className="w-12 h-12 text-white animate-pulse" />
+                  <MarkieAvatar state={markieState} size={80} />
                 </div>
               </div>
 
@@ -270,7 +290,7 @@ export default function AgentModePage() {
 
         {/* ====== Review 阶段 (集成专家报告) ====== */}
         <AnimatePresence>
-          {phase === 'review' && (
+          {effectivePhase === 'review' && (
              <motion.div
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -389,7 +409,7 @@ export default function AgentModePage() {
 
         {/* ====== 完成阶段 ====== */}
         <AnimatePresence>
-          {phase === 'complete' && (
+          {effectivePhase === 'complete' && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

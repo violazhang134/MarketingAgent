@@ -8,9 +8,9 @@ import {
 import { GlassCard } from "@/components/ui/glass-card";
 import { CreativeBreakdown } from "@/components/report/creative-breakdown";
 import { InsightsReporter } from "@/components/report/insights-reporter";
-import { MOCK_ADS, MOCK_HOOKS, MOCK_CTAS, MOCK_TRENDS } from "@/lib/mock-data";
-import { analyzeVideo, VideoAnalysisResult } from "@/lib/analysis-engine";
-import { analyzeComments, generateInsightsReport } from "@/lib/comment-analyzer";
+import { MOCK_ADS, MOCK_HOOKS, MOCK_CTAS, MOCK_TRENDS } from "@/lib/engines/mock-data";
+import { analyzeVideo, VideoAnalysisResult } from "@/lib/engines/analysis-engine";
+import { analyzeComments, generateInsightsReport } from "@/lib/engines/comment-analyzer";
 
 // ========================================
 // 类型定义

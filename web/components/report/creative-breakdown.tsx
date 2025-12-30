@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, BarChart2, Zap, Clock } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { VideoAnalysisResult } from "@/lib/analysis-engine";
+import { VideoAnalysisResult } from "@/lib/engines/analysis-engine";
 
 interface CreativeBreakdownProps {
   isOpen: boolean;

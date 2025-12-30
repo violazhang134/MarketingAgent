@@ -6,7 +6,7 @@ import {
   Target, Sparkles, ThumbsUp, ThumbsDown, Minus
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { CommentAnalysis, InsightsReport } from "@/lib/comment-analyzer";
+import { CommentAnalysis, InsightsReport } from "@/lib/engines/comment-analyzer";
 
 // ========================================
 // Props 类型

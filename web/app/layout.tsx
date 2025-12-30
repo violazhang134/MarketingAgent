@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 
 import { BottomNav } from "@/components/ui/bottom-nav";
 import { CommandPalette } from "@/components/ui/command-palette";
+import { MarkieSidebar } from "@/components/ui/markie-sidebar";
+import { MainContentWrapper } from "@/components/ui/main-content-wrapper";
 
 export default function RootLayout({
   children,
@@ -34,7 +36,10 @@ export default function RootLayout({
             <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 via-obsidian to-cyan-900/20 opacity-50 blur-3xl animate-pulse" />
         </div>
         <CommandPalette />
-        {children}
+        <MarkieSidebar />
+        <MainContentWrapper>
+          {children}
+        </MainContentWrapper>
         <BottomNav />
       </body>
     </html>

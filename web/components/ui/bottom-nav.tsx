@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Home, Zap, Rocket, BookOpen } from "lucide-react";
+import { Home, Zap, Rocket, BookOpen, LayoutDashboard } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/stores/app-store";
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'agent', label: 'Agent', icon: Zap, path: '/agent' },
   { id: 'feed', label: 'Decisions', icon: Rocket, path: '/feed' },
   { id: 'playbook', label: 'Playbook', icon: BookOpen, path: '/playbook' },
@@ -15,9 +17,21 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isSidebarOpen } = useAppStore();
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+    <motion.div 
+      className="fixed bottom-8 left-1/2 z-50"
+      initial={false}
+      animate={{ 
+        x: isSidebarOpen ? "calc(-50% - 160px)" : "-50%" 
+      }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 260, 
+        damping: 26 
+      }}
+    >
       <motion.nav 
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -48,6 +62,6 @@ export function BottomNav() {
           );
         })}
       </motion.nav>
-    </div>
+    </motion.div>
   );
 }

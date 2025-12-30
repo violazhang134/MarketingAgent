@@ -3,17 +3,17 @@
 import { motion } from "framer-motion";
 import { BookOpen, TrendingUp, Zap, ArrowLeft, History } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { useCreativeStore, PlaybookEntry } from "@/lib/creative-store";
+import { useCampaignStore, PlaybookEntry } from "@/lib/stores/campaign-store";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function PlaybookPage() {
-  const { playbook, applyWinningPattern, setStep } = useCreativeStore();
+  const { playbook, applyWinningPattern, setPhase } = useCampaignStore();
   const router = useRouter();
 
   const handleApply = (entry: PlaybookEntry) => {
     applyWinningPattern(entry);
-    setStep('strategy');
+    setPhase('input');
     router.push('/agent');
   };
 

@@ -3,7 +3,15 @@
 // 职责: 基于产品信息和策略配置生成广告素材
 // ========================================
 
-import { ProductProfile, VideoScript, GeneratedAssets, CreativeStrategy, ExperimentConfig, ExperimentPack, ExperimentArm } from './creative-store';
+import type {
+  ProductProfile,
+  VideoScript,
+  GeneratedAssets,
+  CreativeStrategy,
+  ExperimentConfig,
+  ExperimentPack,
+  ExperimentArm,
+} from '../types/campaign';
 
 // ========================================
 // Hook 模板库

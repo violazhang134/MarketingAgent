@@ -28,9 +28,16 @@ npm run dev
 ## 项目文档
 
 - [🏛️ 架构文档 (ARCHITECTURE.md)](./ARCHITECTURE.md): 系统的骨架与设计哲学。
+- [🚀 快速上手 (docs/QUICK_START.md)](./docs/QUICK_START.md): 5 分钟启动项目。
 - [✨ 功能细则 (docs/FEATURES.md)](./docs/FEATURES.md): 四大支柱的实现深度与逻辑细节。
-- [🎨 视觉指南 (docs/UI_GUIDE.md)](./docs/UI_GUIDE.md): Glassmorphism 与“感知反馈”设计方案。
+- [🎨 视觉指南 (docs/UI_GUIDE.md)](./docs/UI_GUIDE.md): Glassmorphism 与"感知反馈"设计方案。
 - [🤖 开发者圣经 (docs/DEV_GUIDE.md)](./docs/DEV_GUIDE.md): 为 LLM 与新开发者准备的集成协议。
+- [📦 状态管理 API (docs/STORES_API.md)](./docs/STORES_API.md): Zustand Store 详细用法。
+- [🧩 组件文档 (docs/COMPONENTS.md)](./docs/COMPONENTS.md): Canvas 与 UI 组件索引。
+- [⚙️ 引擎 API (docs/ENGINES_API.md)](./docs/ENGINES_API.md): 业务计算引擎详解。
+- [🛠️ 技术栈 (docs/TECH_STACK.md)](./docs/TECH_STACK.md): 依赖与选型说明。
+- [📖 术语表 (docs/GLOSSARY.md)](./docs/GLOSSARY.md): 专有名词解释。
+- [🐱 Markie 人格 (docs/markie.md)](./docs/markie.md): 智能体架构白皮书。
 
 ---
 

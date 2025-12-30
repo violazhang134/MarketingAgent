@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="markieListeningGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(32 32) rotate(90) scale(24)">
+      <stop offset="0" stop-color="#C7D2FE" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#1E1B4B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="markieListeningCore" x1="16" y1="16" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="24" fill="url(#markieListeningGlow)"/>
+  <circle cx="32" cy="32" r="20" fill="url(#markieListeningCore)"/>
+  <circle cx="25" cy="28" r="2" fill="#EEF2FF"/>
+  <circle cx="39" cy="28" r="2" fill="#EEF2FF"/>
+  <path d="M24 26C25 25 26 24.5 27 24.5" stroke="#E0E7FF" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M40 26C39 25 38 24.5 37 24.5" stroke="#E0E7FF" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M26 36C28 37.5 30 38 32 38C34 38 36 37.5 38 36" stroke="#E0E7FF" stroke-width="2" stroke-linecap="round"/>
+</svg>
+

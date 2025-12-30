@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Search, Rocket, Zap, BookOpen, 
+  Search, Rocket, Zap, BookOpen, LayoutTemplate,
   RefreshCcw, Terminal, ArrowRight, Shield
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ const ACTIONS = [
   { id: 'agent', label: 'Start Agent Mode', icon: Zap, color: 'text-amber-400', href: '/agent' },
   { id: 'expert', label: 'Expert Analysis', icon: Search, color: 'text-emerald-400', href: '/launch/report' },
   { id: 'creative', label: 'Creative Studio', icon: Rocket, color: 'text-indigo-400', href: '/create/studio' },
+  { id: 'canvas', label: 'Research Canvas', icon: LayoutTemplate, color: 'text-cyan-400', href: '/canvas' },
   { id: 'playbook', label: 'Growth Playbook', icon: BookOpen, color: 'text-purple-400', href: '/playbook' },
   { id: 'reset', label: 'Reset Agent State', icon: RefreshCcw, color: 'text-rose-400', action: 'reset' },
   { id: 'dev', label: 'Open Dev Console', icon: Terminal, color: 'text-white/40', href: '/docs' },
