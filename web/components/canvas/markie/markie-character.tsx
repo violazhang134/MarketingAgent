@@ -27,7 +27,7 @@ export function MarkieCharacter({ state, className }: MarkieCharacterProps) {
 
   // 状态动画变体
   const bodyVariants = {
-    idle: { y: [0, -8, 0], rotate: 0, transition: { duration: 3, repeat: Infinity, ease: "easeInOut" } },
+    idle: { y: [0, -8, 0], rotate: 0, transition: { duration: 3, repeat: Infinity, ease: "easeInOut" as const } },
     move: { y: 0, rotate: 15, x: [0, 5, 0], transition: { duration: 0.5, repeat: Infinity } },
     working: { y: [0, -2, 0], rotate: 0, transition: { duration: 0.2, repeat: Infinity } },
     analyzing: { y: [0, -4, 0], transition: { duration: 2, repeat: Infinity } }, // 沉稳悬浮
@@ -37,7 +37,7 @@ export function MarkieCharacter({ state, className }: MarkieCharacterProps) {
   };
 
   const wingLeftVariants = {
-    idle: { rotate: [10, -5, 10], opacity: 0.7, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } },
+    idle: { rotate: [10, -5, 10], opacity: 0.7, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" as const } },
     analyzing: { rotate: [10, 15, 10], opacity: 0.8, transition: { duration: 3, repeat: Infinity } },
     channeling: { rotate: [10, 30, 10], opacity: 1, filter: "drop-shadow(0 0 5px cyan)", transition: { duration: 0.2, repeat: Infinity } },
     move: { rotate: [10, 20, 10], opacity: 0.9, transition: { duration: 0.2, repeat: Infinity } },
@@ -45,7 +45,7 @@ export function MarkieCharacter({ state, className }: MarkieCharacterProps) {
   };
 
   const wingRightVariants = {
-    idle: { rotate: [-10, 5, -10], opacity: 0.7, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } },
+    idle: { rotate: [-10, 5, -10], opacity: 0.7, transition: { duration: 4, repeat: Infinity, ease: "easeInOut" as const } },
     analyzing: { rotate: [-10, -15, -10], opacity: 0.8, transition: { duration: 3, repeat: Infinity } },
     channeling: { rotate: [-10, -30, -10], opacity: 1, filter: "drop-shadow(0 0 5px cyan)", transition: { duration: 0.2, repeat: Infinity } },
     move: { rotate: [-10, -20, -10], opacity: 0.9, transition: { duration: 0.2, repeat: Infinity } },

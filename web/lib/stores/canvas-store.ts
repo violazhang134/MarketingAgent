@@ -545,14 +545,60 @@ export const useCanvasStore = create<CanvasState>()(
     }),
     {
       name: 'marketing-agent-canvas-storage',
-      partialize: (state) => ({
-        // 只持久化必要数据，viewport 不持久化
-        canvases: state.canvases,
-        nodes: state.nodes,
-        edges: state.edges,
-        activeCanvasId: state.activeCanvasId,
-        viewMode: state.viewMode,  // 持久化视图模式
-      }),
+      // P1 修复: 限制持久化的节点/边数量，防止 localStorage 超限
+      partialize: (state) => {
+        // 最多保留最近的 200 个节点和 300 条边
+        const MAX_NODES = 200;
+        const MAX_EDGES = 300;
+        
+        const limitedNodes = state.nodes.length > MAX_NODES 
+          ? state.nodes.slice(-MAX_NODES) // 保留最新的节点
+          : state.nodes;
+          
+        const limitedNodeIds = new Set(limitedNodes.map(n => n.id));
+        const limitedEdges = state.edges
+          .filter(e => limitedNodeIds.has(e.fromNodeId) && limitedNodeIds.has(e.toNodeId))
+          .slice(-MAX_EDGES);
+        
+        return {
+          canvases: state.canvases,
+          nodes: limitedNodes,
+          edges: limitedEdges,
+          activeCanvasId: state.activeCanvasId,
+          viewMode: state.viewMode,
+        };
+      },
+      // P1 修复: 自定义 storage 处理 QuotaExceededError
+      storage: {
+        getItem: (name) => {
+          try {
+            const value = localStorage.getItem(name);
+            return value ? JSON.parse(value) : null;
+          } catch {
+            console.warn('[canvas-store] Failed to read from localStorage');
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value));
+          } catch (error) {
+            // QuotaExceededError 处理：清空旧数据重试
+            if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+              console.warn('[canvas-store] localStorage quota exceeded, clearing old data');
+              localStorage.removeItem(name);
+              try {
+                localStorage.setItem(name, JSON.stringify(value));
+              } catch {
+                console.error('[canvas-store] Failed to save even after clearing');
+              }
+            }
+          }
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        },
+      },
     }
   )
 );

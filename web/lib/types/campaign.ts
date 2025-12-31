@@ -5,7 +5,8 @@ export type CampaignPhase =
   | 'review'
   | 'complete'
   | 'chatting'
-  | 'analyzing';
+  | 'analyzing'
+  | 'error';  // P0 修复: 添加错误状态以支持异步工作流异常处理
 
 export interface Message {
   id: string;

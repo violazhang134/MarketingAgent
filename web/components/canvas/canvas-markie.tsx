@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore } from '@/lib/stores/canvas-store';
 import { useAppStore } from '@/lib/stores/app-store';
-import { ByteCharacter } from './markie/byte-character';
+import { PixelCharacter } from './markie/pixel-character';
 
 // ========================================
 // Minion Squad 配置 - Phase 2 升级版
@@ -18,17 +18,17 @@ interface MinionPersonality {
 interface Minion {
   id: number;
   name: string;
-  variant: 'orange' | 'blue' | 'purple' | 'green' | 'pink';
+  variant: 'orange' | 'blue' | 'purple' | 'green' | 'pink' | 'black';
   personality: MinionPersonality;
 }
 
 const SQUAD: Minion[] = [
-  { id: 1, name: 'Byte', variant: 'blue', personality: { stiffness: 12, damping: 20, baseDelay: 0, idleVariant: 0, roamSpeed: 1.0 } },
-  { id: 2, name: 'Bit', variant: 'orange', personality: { stiffness: 18, damping: 15, baseDelay: 0.1, idleVariant: 1, roamSpeed: 1.5 } },
+  { id: 1, name: 'Byte', variant: 'orange', personality: { stiffness: 12, damping: 20, baseDelay: 0, idleVariant: 0, roamSpeed: 1.0 } },
+  { id: 2, name: 'Bit', variant: 'blue', personality: { stiffness: 18, damping: 15, baseDelay: 0.1, idleVariant: 1, roamSpeed: 1.5 } },
   { id: 3, name: 'Kilobyte', variant: 'green', personality: { stiffness: 8, damping: 25, baseDelay: 0.2, idleVariant: 2, roamSpeed: 0.7 } },
-  { id: 4, name: 'Meg', variant: 'purple', personality: { stiffness: 15, damping: 18, baseDelay: 0.05, idleVariant: 3, roamSpeed: 1.3 } },
-  { id: 5, name: 'Giga', variant: 'pink', personality: { stiffness: 14, damping: 20, baseDelay: 0.15, idleVariant: 4, roamSpeed: 1.1 } },
-  { id: 6, name: 'Tera', variant: 'blue', personality: { stiffness: 10, damping: 22, baseDelay: 0.25, idleVariant: 0, roamSpeed: 0.9 } },
+  { id: 4, name: 'Meg', variant: 'pink', personality: { stiffness: 15, damping: 18, baseDelay: 0.05, idleVariant: 3, roamSpeed: 1.3 } },
+  { id: 5, name: 'Giga', variant: 'purple', personality: { stiffness: 14, damping: 20, baseDelay: 0.15, idleVariant: 4, roamSpeed: 1.1 } },
+  { id: 6, name: 'Tera', variant: 'black', personality: { stiffness: 10, damping: 22, baseDelay: 0.25, idleVariant: 0, roamSpeed: 0.9 } },
 ];
 
 // 画布角落区域定义 (用于空闲时漫游)
@@ -52,11 +52,27 @@ function getRandomRoamPosition(zoneIndex: number): { x: number; y: number } {
 }
 
 export function CanvasMarkie() {
-  const { nodes, selectedNodeId, activeCanvasId } = useCanvasStore();
+  const { nodes, activeCanvasId } = useCanvasStore();
   const minionsEnabled = useAppStore((s) => s.minionsEnabled);
   
   const [pokedId, setPokedId] = useState<number | null>(null);
-  const [emojiState, setEmojiState] = useState<{ id: number; char: string } | null>(null);
+  const [bubbleState, setBubbleState] = useState<{ id: number; content: string; type: 'emoji' | 'text' } | null>(null);
+  
+  // Refs (Must be top-level)
+  const prevPositionsRef = useRef<Record<number, { x: number; y: number; time: number }>>({});
+  const prevNodeStatusRef = useRef<Record<string, string>>({});
+  // P0 修复: 追踪所有活跃的 setTimeout，便于组件卸载时清理
+  const timeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  // P0 修复: 安全的 setTimeout wrapper，自动追踪和清理
+  const safeSetTimeout = (callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      timeoutsRef.current.delete(timeoutId);
+      callback();
+    }, delay);
+    timeoutsRef.current.add(timeoutId);
+    return timeoutId;
+  };
   
   // 每个 Minion 的漫游位置 (独立状态)
   const [roamPositions, setRoamPositions] = useState<Record<number, { x: number; y: number }>>(() => {
@@ -67,112 +83,226 @@ export function CanvasMarkie() {
     return initial;
   });
 
-  // 分配到节点的 Minions (最多2个)
-  const [assignedMinions, setAssignedMinions] = useState<number[]>([]);
+  // 分配状态：Map<NodeId, MinionId>
+  const [taskAssignments, setTaskAssignments] = useState<Record<string, number>>({});
+
+  // P0 修复: 组件卸载时清理所有 timeout
+  useEffect(() => {
+    const currentTimeouts = timeoutsRef.current; // 复制 ref 以避免 eslint 警告
+    return () => {
+      currentTimeouts.forEach(id => clearTimeout(id));
+      currentTimeouts.clear();
+    };
+  }, []);
 
   const activeNodes = nodes.filter(n => n.canvasId === activeCanvasId);
-  
-  // 找出正在运行的节点
+  // Detect all running nodes, regardless of type (agent_step, analysis, insight, etc.)
   const runningNodes = useMemo(() => 
     activeNodes.filter(n => n.status === 'running'),
     [activeNodes]
   );
 
-  // 当有 Running 节点时，分配 1-2 个 Minion 去工作
+  // 1:1 任务分配逻辑
   useEffect(() => {
-    if (runningNodes.length > 0) {
-      // 随机选择 1-2 个 Minion 派遣
-      const count = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
-      const available = SQUAD.map(m => m.id).filter(id => !assignedMinions.includes(id));
-      const shuffled = available.sort(() => Math.random() - 0.5);
-      setAssignedMinions(shuffled.slice(0, count));
-    } else {
-      // 没有 Running 节点，全部回归漫游
-      setAssignedMinions([]);
-    }
-  }, [runningNodes.length]);
+    // A. 清理：移除已完成节点的分配
+    const runningIds = new Set(runningNodes.map(n => n.id));
+    const currentAssignments = { ...taskAssignments };
+    let hasChanges = false;
 
-  // 空闲时的漫游逻辑：每隔一段时间更新各自的漫游目标
+    Object.keys(currentAssignments).forEach(nodeId => {
+      if (!runningIds.has(nodeId)) {
+        delete currentAssignments[nodeId];
+        hasChanges = true;
+      }
+    });
+
+    // B. 分配：为新加入的 Running 节点分配空闲 Minion
+    const assignedMinionIds = new Set(Object.values(currentAssignments));
+    const freeMinions = SQUAD.filter(m => !assignedMinionIds.has(m.id)).map(m => m.id);
+
+    runningNodes.forEach(node => {
+      if (!currentAssignments[node.id] && freeMinions.length > 0) {
+        // 随机选择一个空闲 Minion
+        const randomIndex = Math.floor(Math.random() * freeMinions.length);
+        const minionId = freeMinions[randomIndex];
+        currentAssignments[node.id] = minionId;
+        
+        // 从空闲列表中移除
+        freeMinions.splice(randomIndex, 1);
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setTaskAssignments(currentAssignments);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runningNodes]); // taskAssignments omitted to break loop, logic relies on runningNodes triggering update
+
+  // Monitor Node Status Changes (Success/Error Reactions)
+  useEffect(() => {
+    activeNodes.forEach(node => {
+      const prevStatus = prevNodeStatusRef.current[node.id];
+      const actualStatus = node.status; // Correct: status is at node root level
+
+      if (prevStatus && prevStatus !== actualStatus) {
+        if (actualStatus === 'done') { // NodeStatus: 'pending' | 'running' | 'done' | 'error'
+          const assignedMinionId = taskAssignments[node.id];
+          if (assignedMinionId) {
+             setBubbleState({ id: assignedMinionId, content: 'Shiny!✨', type: 'text' });
+             safeSetTimeout(() => setBubbleState(null), 2000); // P0: 使用安全的 setTimeout
+          }
+        } else if (actualStatus === 'error') {
+           const assignedMinionId = taskAssignments[node.id];
+           if (assignedMinionId) {
+             setBubbleState({ id: assignedMinionId, content: 'Bug!! 😱', type: 'text' });
+             safeSetTimeout(() => setBubbleState(null), 2000); // P0: 使用安全的 setTimeout
+           }
+        }
+      }
+      prevNodeStatusRef.current[node.id] = actualStatus || '';
+    });
+  }, [activeNodes, taskAssignments]);
+
+  // 空闲时的漫游逻辑
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
     
+    // Create a stable reference to assigned IDs to avoid closure staleness if needed,
+    // but here we depend on taskAssignments so it updates naturally.
+    const assignedMinionIds = Object.values(taskAssignments);
+    
     SQUAD.forEach((minion, index) => {
-      // 只有未被分配的 Minion 才漫游
       const roamInterval = 3000 + minion.personality.roamSpeed * 2000 + Math.random() * 2000;
-      
       const timer = setInterval(() => {
-        if (!assignedMinions.includes(minion.id)) {
+        // 只有未被分配任务的 Minion 才会更新漫游目标
+        if (!assignedMinionIds.includes(minion.id)) {
           setRoamPositions(prev => ({
             ...prev,
             [minion.id]: getRandomRoamPosition(index + Math.floor(Math.random() * 4)),
           }));
         }
       }, roamInterval);
-      
       timers.push(timer);
     });
 
     return () => timers.forEach(t => clearInterval(t));
-  }, [assignedMinions]);
+  }, [taskAssignments]); // 依赖分配状态变化
 
-  // 随机表情触发
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (Math.random() > 0.5) {
-        const randomMinion = SQUAD[Math.floor(Math.random() * SQUAD.length)];
-        const emojis = ['🎵', '💤', '✨', '🛠️', '👀', '🐾', '💭', '❓', '💡', '😊', '🌟'];
-        setEmojiState({ id: randomMinion.id, char: emojis[Math.floor(Math.random() * emojis.length)] });
-        setTimeout(() => setEmojiState(null), 2500);
+  // Calculate positions (Always run hooks, but return empty if disabled)
+  const minionPositions = useMemo(() => {
+    if (!activeNodes.length || !minionsEnabled) return [];
+
+    return SQUAD.map((minion) => {
+      // 1. Determine Target Position
+      let targetX = 0, targetY = 0;
+      let baseState = 'idle';
+      let flipped = false;
+
+      const assignedNodeId = Object.keys(taskAssignments).find(key => taskAssignments[key] === minion.id);
+      const targetNode = assignedNodeId ? runningNodes.find(n => n.id === assignedNodeId) : null;
+      
+      if (targetNode) {
+        const centerX = targetNode.x + NODE_WIDTH / 2;
+        const centerY = targetNode.y + NODE_HEIGHT / 2;
+        const offsetX = (minion.id % 2 === 0 ? 1 : -1) * 20;
+        targetX = centerX + offsetX - 48;
+        targetY = centerY - 80;
+        baseState = 'working';
+        flipped = offsetX > 0;
+      } else {
+        const roamPos = roamPositions[minion.id] || { x: 0, y: 0 };
+        targetX = roamPos.x;
+        targetY = roamPos.y;
+        baseState = 'idle';
+        flipped = minion.id % 2 === 0;
       }
-    }, 3500);
-    return () => clearInterval(timer);
-  }, []);
 
-  if (!activeNodes.length || !minionsEnabled) return null;
+      // 2. Detect Movement
+      const now = Date.now();
+      const prev = prevPositionsRef.current[minion.id];
+      let isMoving = false;
 
-  // 计算每个 Minion 的最终位置
-  const minionPositions = SQUAD.map((minion) => {
-    const isAssigned = assignedMinions.includes(minion.id);
-    
-    if (isAssigned && runningNodes.length > 0) {
-      // 被分配去工作：围绕 Running 节点
-      const targetNode = runningNodes[0];
-      const assignedIndex = assignedMinions.indexOf(minion.id);
-      const angle = ((assignedIndex * 90) - 45) * (Math.PI / 180);
-      const radius = 100 + assignedIndex * 30;
-      
-      const centerX = targetNode.x + NODE_WIDTH / 2;
-      const centerY = targetNode.y + NODE_HEIGHT / 2;
-      
+      // Check if target changed or if we are within movement window
+      if (!prev || Math.abs(prev.x - targetX) > 1 || Math.abs(prev.y - targetY) > 1) {
+        prevPositionsRef.current[minion.id] = { x: targetX, y: targetY, time: now };
+        isMoving = true;
+      } else if (now - prev.time < 1200) {
+        isMoving = true;
+      }
+
+      // Override state
+      if (baseState === 'idle' && isMoving) {
+        baseState = 'move';
+      }
+
       return {
         id: minion.id,
-        x: centerX + Math.cos(angle) * radius - 48,
-        y: centerY + Math.sin(angle) * radius - 48,
-        state: 'working',
-        flipped: Math.cos(angle) < 0,
+        x: targetX,
+        y: targetY,
+        state: baseState,
+        flipped: flipped,
       };
-    } else {
-      // 空闲：在角落漫游
-      const roamPos = roamPositions[minion.id] || { x: 0, y: 0 };
-      return {
-        id: minion.id,
-        x: roamPos.x,
-        y: roamPos.y,
-        state: 'idle',
-        flipped: minion.id % 2 === 0, // 交替朝向
-      };
+    });
+  }, [activeNodes.length, minionsEnabled, taskAssignments, runningNodes, roamPositions]);
+
+  // 4. Collision Side-Effect
+  useEffect(() => {
+    if (minionPositions.length === 0) return;
+
+    for (let i = 0; i < minionPositions.length; i++) {
+      for (let j = i + 1; j < minionPositions.length; j++) {
+        const p1 = minionPositions[i];
+        const p2 = minionPositions[j];
+        if (!p1 || !p2) continue; // Safety
+
+        const dist = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        
+        // Threshold 60px. Trigger bubble if no bubble currently active.
+        if (dist < 60 && !bubbleState && Math.random() > 0.9) { 
+             const greetings = ['Oop!', 'Hi!', 'Excuse me', 'Bump!', 'Hug?', 'Ciao', 'Pardon'];
+             const content = greetings[Math.floor(Math.random() * greetings.length)];
+             setBubbleState({ 
+               id: Math.random() > 0.5 ? p1.id : p2.id, 
+               content, 
+               type: 'text' 
+             });
+             
+             // Auto clear after 1.5s
+             safeSetTimeout(() => setBubbleState(null), 1500); // P0: 使用安全的 setTimeout
+             return; // Only one collision per tick to avoid chaos
+        }
+      }
     }
-  });
+  }, [minionPositions, bubbleState]); // Re-run when positions change
+  
+  if (!activeNodes.length || !minionsEnabled) return null;
 
   const handlePoke = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     setPokedId(id);
-    setEmojiState({ id, char: '⚡' });
-    setTimeout(() => {
+    
+    // Personality Feedback
+    const minion = SQUAD.find(m => m.id === id);
+    let content = 'Hey!';
+    if (minion) {
+       switch(minion.variant) {
+         case 'orange': content = 'Cookie?'; break; // Byte
+         case 'blue': content = 'Play?'; break;   // Bit
+         case 'green': content = 'Ribbit!'; break; // Kilo
+         case 'pink': content = 'Candy!'; break;   // Meg
+         case 'purple': content = 'Sparkle!'; break; // Giga
+         case 'black': content = '...'; break;     // Tera
+       }
+    }
+
+    setBubbleState({ id, content, type: 'text' });
+    safeSetTimeout(() => { // P0: 使用安全的 setTimeout
       setPokedId(null);
-      setEmojiState(null);
+      setBubbleState(null);
     }, 800);
   };
+
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-40">
@@ -184,7 +314,20 @@ export function CanvasMarkie() {
           const isPoked = pokedId === minion.id;
           const visualState = isPoked ? 'poked' : pos.state;
           const { personality } = minion;
-          const isWorking = assignedMinions.includes(minion.id);
+          const isWorking = Object.values(taskAssignments).includes(minion.id);
+
+          // Movement Physics: Super Dash for Work (Fly!), Floaty for Idle
+          const idleStiffness = personality.stiffness * 0.4;
+          const idleDamping = personality.damping * 2;
+          
+          // Dash Physics: Very high stiffness for speed, low damping for "zip" feel
+          const dashTransition = { 
+            type: 'spring' as const,  // Fix: use 'as const' for literal type
+            stiffness: 500, // Super fast!
+            damping: 30,    // No bounce, just stop
+            mass: 0.8,      // Light mass for acceleration
+            restDelta: 0.5
+          };
 
           return (
             <motion.div
@@ -193,37 +336,45 @@ export function CanvasMarkie() {
               initial={{ opacity: 0, scale: 0 }}
               animate={{ 
                 opacity: 1,
-                scale: isWorking ? 1.1 : 0.9, // 工作时稍微大一点
+                scale: isWorking ? 1.1 : 0.9, 
                 x: pos.x, 
                 y: pos.y,
               }}
               exit={{ opacity: 0, scale: 0 }}
-              transition={{ 
-                type: 'spring', 
-                stiffness: isWorking ? personality.stiffness * 1.2 : personality.stiffness * 0.8,
-                damping: personality.damping * 1.5, // 增加阻尼，更平滑
-                delay: personality.baseDelay,
-              }}
+              transition={
+                isWorking 
+                  ? dashTransition // ⚡️ FLASH!
+                  : { 
+                      type: 'spring', 
+                      stiffness: idleStiffness,
+                      damping: idleDamping,
+                      mass: 1.2,
+                      restDelta: 0.001
+                    }
+              }
               onClick={(e) => handlePoke(e, minion.id)}
             >
-              <ByteCharacter 
-                state={visualState}
+              <PixelCharacter 
+                state={visualState as 'idle' | 'working' | 'move' | 'poked' | 'bump'}
                 variant={minion.variant}
                 isFlipped={pos.flipped}
                 label={isWorking ? `🔧 ${minion.name}` : minion.name}
-                idleVariant={personality.idleVariant}
               />
 
               <AnimatePresence>
-                {emojiState?.id === minion.id && (
+                {bubbleState?.id === minion.id && (
                   <motion.div 
-                    key="emoji"
-                    initial={{ opacity: 0, y: 0, scale: 0 }}
-                    animate={{ opacity: 1, y: -35, scale: 1.2 }}
+                    key="bubble"
+                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                    animate={{ opacity: 1, y: -45, scale: 1 }}
                     exit={{ opacity: 0, scale: 0 }}
-                    className="absolute -top-8 left-1/2 -translate-x-1/2 text-2xl drop-shadow-lg z-50"
+                    className={`absolute -top-10 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap pointer-events-none
+                      ${bubbleState.type === 'text' 
+                        ? 'bg-white text-black px-3 py-1 rounded-xl rounded-bl-sm border-2 border-black text-xs font-bold shadow-lg' 
+                        : 'text-3xl drop-shadow-lg'
+                      }`}
                   >
-                    {emojiState.char}
+                    {bubbleState.content}
                   </motion.div>
                 )}
               </AnimatePresence>

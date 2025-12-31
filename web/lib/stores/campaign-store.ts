@@ -173,13 +173,17 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       steps: INITIAL_STEPS,
     });
 
+    // P0 修复: 追踪当前处理的节点ID，以便出错时标记
+    let currentNodeId: string | null = null;
+
+    try {
+
     const updateStep = (id: string, updates: Partial<AgentStep>) => {
       set(state => ({
         steps: state.steps.map(s => s.id === id ? { ...s, ...updates } : s)
       }));
     };
 
-    // ========================================
     // Step 1: 采集广告数据
     // ========================================
     updateStep('ads', { status: 'running' });
@@ -191,8 +195,9 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       undefined,
       { competitorName, productName }
     );
+    currentNodeId = adsNode.id;  // P0: 追踪当前节点
 
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 2800)); // 1.2s -> 2.8s
     const adRes = analyzeCompetitor(competitorName);
     
     updateStep('ads', { status: 'done', message: `发现 ${Math.floor(Math.random() * 50 + 20)} 条活跃广告` });
@@ -215,8 +220,9 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       adsNode.id,
       { competitorName, analysisData: adRes }
     );
+    currentNodeId = analysisNode.id;
 
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 3200)); // 1.0s -> 3.2s
     
     updateStep('trends', { status: 'done', message: `YouTube ${Math.floor(Math.random() * 20 + 5)} 条热门视频` });
     canvasStore.updateNodeStatus(analysisNode.id, 'done');
@@ -244,8 +250,9 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       analysisNode.id,
       { competitorName }
     );
+    currentNodeId = commentsNode.id;
 
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2600)); // 1.5s -> 2.6s
     const commentRes = analyzeComments(competitorName);
     const insightsReport = generateInsightsReport(commentRes, competitorName, productName);
     
@@ -271,6 +278,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       commentsNode.id,
       { competitorName, productName, insightsData: insightsReport }
     );
+    currentNodeId = insightNode.id;
 
     await new Promise(r => setTimeout(r, 800));
     canvasStore.updateNodeStatus(insightNode.id, 'done');
@@ -292,6 +300,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       insightNode.id,
       { competitorName, productName }
     );
+    currentNodeId = strategyNode.id;
 
     await new Promise(r => setTimeout(r, 1200));
     const summary = insightsReport.strategySuggestions[0] || "使用差异化定位策略";
@@ -319,6 +328,15 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
     // 自动平移到最后生成的节点
     canvasStore.panTo(strategyNode.id);
+
+    } catch (error) {
+      // P0 修复: 捕获工作流异常，标记当前节点为错误状态
+      console.error('[runAgentWorkflow] Error:', error);
+      if (currentNodeId) {
+        canvasStore.updateNodeStatus(currentNodeId, 'error');
+      }
+      set({ phase: 'error' });
+    }
   },
 
   generateAssetsWorkflow: async () => {
@@ -337,6 +355,11 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
     // 找到策略节点作为父节点
     const parentNodeId = researchCanvasNodeId || undefined;
+
+    // P0 修复: 追踪当前处理的节点ID
+    let currentNodeId: string | null = null;
+
+    try {
 
     // ========================================
     // Step 1: 生成创意素材
@@ -390,6 +413,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
         planData: tacticalData
       }
     );
+    currentNodeId = tacticalPlanNode.id;
 
     // 模拟分析耗时
     await new Promise(r => setTimeout(r, 1500));
@@ -416,6 +440,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
         hooks: assets.hooks
       }
     );
+    currentNodeId = creativePackNode.id;
 
     await new Promise(r => setTimeout(r, 1000));
     canvasStore.updateNodeStatus(creativePackNode.id, 'done');
@@ -442,6 +467,7 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
         experimentPack: expPack
       }
     );
+    currentNodeId = experimentPackNode.id;
 
     await new Promise(r => setTimeout(r, 800));
     canvasStore.updateNodeStatus(experimentPackNode.id, 'done');
@@ -461,6 +487,15 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
     // 自动居中
     canvasStore.panTo(experimentPackNode.id);
+
+    } catch (error) {
+      // P0 修复: 捕获工作流异常，标记当前节点为错误状态
+      console.error('[generateAssetsWorkflow] Error:', error);
+      if (currentNodeId) {
+        canvasStore.updateNodeStatus(currentNodeId, 'error');
+      }
+      set({ phase: 'error' });
+    }
   },
 
   settleExperiment: (winnerId, lift) => set((state) => {

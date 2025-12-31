@@ -94,9 +94,9 @@ export function MarkieAvatar({ state, size = 40 }: MarkieAvatarProps) {
 
   // 容器动画
   const containerVariants = {
-    idle: { scale: [1, 1.05, 1], transition: { duration: 4, repeat: Infinity, ease: "easeInOut" } },
+    idle: { scale: [1, 1.05, 1], transition: { duration: 4, repeat: Infinity, ease: "easeInOut" as const } },
     listening: { scale: [1, 1.1, 1], transition: { duration: 2, repeat: Infinity } },
-    channeling: { rotate: 360, scale: [1, 0.9, 1.1, 1], transition: { rotate: { duration: 3, repeat: Infinity, ease: "linear" }, scale: { duration: 1, repeat: Infinity } } },
+    channeling: { rotate: 360, scale: [1, 0.9, 1.1, 1], transition: { rotate: { duration: 3, repeat: Infinity, ease: "linear" as const }, scale: { duration: 1, repeat: Infinity } } },
     magic: { y: [0, -5, 0], scale: [1, 1.2, 1], transition: { duration: 0.5 } },
     mischief: { rotate: [0, -10, 10, -10, 10, 0], transition: { duration: 0.5 } },
   };
