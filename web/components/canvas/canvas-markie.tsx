@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore } from '@/lib/stores/canvas-store';
 import { useAppStore } from '@/lib/stores/app-store';
 import { PixelCharacter } from './markie/pixel-character';
+import { useSensory } from '@/lib/hooks/use-sensory';
 
 // ========================================
 // Minion Squad 配置 - Phase 2 升级版
@@ -58,6 +59,11 @@ export function CanvasMarkie() {
   const [pokedId, setPokedId] = useState<number | null>(null);
   const [bubbleState, setBubbleState] = useState<{ id: number; content: string; type: 'emoji' | 'text' } | null>(null);
   
+  // Click Feedback: 连击计数 + 音效
+  const [clickCounts, setClickCounts] = useState<Record<number, number>>({});
+  const clickResetTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
+  const { trigger } = useSensory();
+  
   // Refs (Must be top-level)
   const prevPositionsRef = useRef<Record<number, { x: number; y: number; time: number }>>({});
   const prevNodeStatusRef = useRef<Record<string, string>>({});
@@ -85,6 +91,19 @@ export function CanvasMarkie() {
 
   // 分配状态：Map<NodeId, MinionId>
   const [taskAssignments, setTaskAssignments] = useState<Record<string, number>>({});
+
+  // Dialogue Pool (must be before early return to satisfy Hooks rules)
+  const DIALOGUE_POOL = useMemo(() => ({
+    escape: ['Bye!!! 💨', 'Too much! 😵', 'I flee~ 🏃', 'Adios! 👋', 'Can\'t take it! 💀'],
+    dizzy: ['Dizzy... 💫', 'Stars... ⭐', 'Whoaaa 🌀', 'My head! 🤯', 'Spinny... 😵‍💫'],
+    annoyed: ['Stop it! 😤', 'Hey! 😠', 'Rude! 💢', 'Ow ow ow! 😣', 'Bully! 😾'],
+    orange: ['Cookie? 🍪', 'Snack time? 🍩', 'Yummy? 😋', 'Munch! 🐹', 'Hungry! 🍕', 'Nom nom 😸'],
+    blue: ['Play? 🎮', 'Tag! 🏃', 'Fun! 🎉', 'Game on! 🕹️', 'Race ya! 🏎️', 'Wheee! 🎠'],
+    green: ['Ribbit! 🐸', 'Croak! 🪷', 'Lily pad! 🍃', 'Bug? 🪲', 'Pond? 💧', 'Hop hop 🦗'],
+    pink: ['Candy! 🍬', 'Sweet! 🍭', 'Cuuute 💕', 'Sparkle! 💖', 'Love! 💗', 'Pinky! 🌸'],
+    purple: ['Sparkle~ ✨', 'Magic! 🔮', 'Mystic 🌙', 'Cosmic! 🌌', 'Shiny~ 💎', 'Stardust ⭐'],
+    black: ['... 🌑', 'Hmph 🖤', 'Whatever 😑', 'Zzz 💤', 'Meh 🫥', '*stares* 👁️'],
+  }), []);
 
   // P0 修复: 组件卸载时清理所有 timeout
   useEffect(() => {
@@ -278,29 +297,60 @@ export function CanvasMarkie() {
   
   if (!activeNodes.length || !minionsEnabled) return null;
 
+  // ==========================================
+  // Click Feedback Handler (Multi-Modal + Escalation) 
+  // ==========================================
   const handlePoke = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    setPokedId(id);
     
-    // Personality Feedback
-    const minion = SQUAD.find(m => m.id === id);
-    let content = 'Hey!';
-    if (minion) {
-       switch(minion.variant) {
-         case 'orange': content = 'Cookie?'; break; // Byte
-         case 'blue': content = 'Play?'; break;   // Bit
-         case 'green': content = 'Ribbit!'; break; // Kilo
-         case 'pink': content = 'Candy!'; break;   // Meg
-         case 'purple': content = 'Sparkle!'; break; // Giga
-         case 'black': content = '...'; break;     // Tera
-       }
+    // Helper: random pick from array
+    const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+    
+    // Helper: get response based on click count
+    const getResponse = (minionId: number, count: number) => {
+      const minion = SQUAD.find(m => m.id === minionId);
+      
+      if (count >= 6) {
+        return { text: pick(DIALOGUE_POOL.escape), sound: 'alert' as const, vibrate: 50 };
+      } else if (count >= 4) {
+        return { text: pick(DIALOGUE_POOL.dizzy), sound: 'alert' as const, vibrate: 30 };
+      } else if (count >= 2) {
+        return { text: pick(DIALOGUE_POOL.annoyed), sound: 'tap' as const, vibrate: 20 };
+      }
+      
+      const pool = minion ? DIALOGUE_POOL[minion.variant] : ['Hey! 👋'];
+      return { text: pick(pool), sound: 'tap' as const, vibrate: 10 };
+    };
+    
+    // 1. Update click count
+    const currentCount = (clickCounts[id] || 0) + 1;
+    setClickCounts(prev => ({ ...prev, [id]: currentCount }));
+    
+    // 2. Reset click count after 1 second of no clicks
+    if (clickResetTimeoutRef.current[id]) {
+      clearTimeout(clickResetTimeoutRef.current[id]);
     }
-
-    setBubbleState({ id, content, type: 'text' });
-    safeSetTimeout(() => { // P0: 使用安全的 setTimeout
+    clickResetTimeoutRef.current[id] = setTimeout(() => {
+      setClickCounts(prev => ({ ...prev, [id]: 0 }));
+    }, 1000);
+    
+    // 3. Get escalated response
+    const response = getResponse(id, currentCount);
+    
+    // 4. Multi-modal feedback
+    trigger(response.sound);  // Audio
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(response.vibrate);  // Haptic
+    }
+    
+    // 5. Visual feedback
+    setPokedId(id);
+    setBubbleState({ id, content: response.text, type: 'text' });
+    
+    safeSetTimeout(() => {
       setPokedId(null);
       setBubbleState(null);
-    }, 800);
+    }, currentCount >= 6 ? 1500 : 800);
   };
 
 
@@ -332,7 +382,8 @@ export function CanvasMarkie() {
           return (
             <motion.div
               key={minion.id}
-              className="absolute pointer-events-auto cursor-pointer"
+              className="absolute pointer-events-auto cursor-pointer z-50"
+              style={{ width: 96, height: 96 }} // Explicit clickable area
               initial={{ opacity: 0, scale: 0 }}
               animate={{ 
                 opacity: 1,
@@ -352,6 +403,7 @@ export function CanvasMarkie() {
                       restDelta: 0.001
                     }
               }
+              onMouseDown={(e) => e.stopPropagation()} // Prevent canvas drag
               onClick={(e) => handlePoke(e, minion.id)}
             >
               <PixelCharacter 

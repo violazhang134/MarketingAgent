@@ -12,6 +12,15 @@ import type {
   ExperimentPack,
   ExperimentArm,
 } from '../types/campaign';
+import { MARKETING_PROMPT_TEMPLATES } from '../data/marketing-prompts';
+
+export interface ImageGenRequest {
+  id: string;
+  type: 'cover' | 'banner' | 'social' | 'video' | 'screenshot';
+  prompt: string;
+  negativePrompt: string;
+  size: '1:1' | '16:9' | '9:16';
+}
 
 // ========================================
 // Hook 模板库
@@ -195,6 +204,10 @@ export function generateCreativeAssets(
     hooks: generateHooks(product, strategy),
     landingCopy: generateLandingCopy(product, strategy),
     sharingCopy: generateSharingCopy(product, strategy),
+    coverImages: [],
+    banners: [],
+    socialCards: [],
+    screenshots: [],
   };
 }
 
@@ -231,4 +244,95 @@ export function generateExperimentPack(
     arms: arms,
     allocations: [50, 50]
   };
+}
+
+// ========================================
+// 主角参考生成 (Step 1)
+// ========================================
+export function generateCharacterPrompt(
+  product: ProductProfile,
+  strategy: CreativeStrategy
+): ImageGenRequest {
+  const templates = MARKETING_PROMPT_TEMPLATES;
+  // 简单的风格映射
+  const styleMap: Record<string, string> = {
+    challenge: '高饱和度卡通',
+    suspense: '神秘暗黑',
+    satisfaction: '清新明亮',
+    contrast: '强对比度',
+  };
+  const style = styleMap[strategy.hookStyle] || '高饱和度卡通';
+
+  return {
+    id: `char_ref_${Date.now()}`,
+    type: 'screenshot', // Temporary type reuse, ideally add 'character' type but keeping simple for now
+    prompt: templates.characterSheet.basePrompt(product.name, style),
+    negativePrompt: templates.characterSheet.negativePrompt,
+    size: '1:1',
+  };
+}
+
+// ========================================
+// 营销图片 Prompt 生成 (Step 2 - Uses Ref)
+// ========================================
+export function generateMarketingImagePrompts(
+  product: ProductProfile,
+  strategy: CreativeStrategy,
+  _hooks: string[],
+  refImageUrl?: string // New Parameter
+): ImageGenRequest[] {
+  const templates = MARKETING_PROMPT_TEMPLATES;
+  const styleMap: Record<string, string> = {
+    challenge: '高饱和度卡通',
+    suspense: '神秘暗黑',
+    satisfaction: '清新明亮',
+    contrast: '强对比度',
+  };
+  const style = styleMap[strategy.hookStyle] || '高饱和度卡通';
+
+  // 统一的玩法风格描述
+  let gameplayStyle = `${style}，核心玩法展示，UI界面清晰`;
+  
+  // 如果有参考图，强化 Prompt 的一致性描述 (实际 Reference 传递由 API worklow 负责，这里主要是 Text Mapping)
+  if (refImageUrl) {
+    gameplayStyle += `，请把参考图中的角色作为本游戏的主角，保持外观一致，基于参考图设计`;
+  }
+
+  return [
+    // 1. 游戏封面 (美宣) - 1:1
+    {
+      id: `cover_${Date.now()}`,
+      type: 'cover',
+      prompt: templates.gameCover.basePrompt(product.name, refImageUrl ? `${style}，请把参考图中的角色作为本游戏的主角，保持外观一致` : style),
+      negativePrompt: templates.gameCover.negativePrompt,
+      size: '1:1',
+    },
+    // 2. 游戏 Banner (美宣) - 16:9
+    {
+      id: `banner_${Date.now()}`,
+      type: 'banner',
+      prompt: templates.appStoreBanner.basePrompt(product.name, [
+        refImageUrl ? `${style}视觉，请把参考图中的角色作为本游戏的主角，保持一致` : `${style}视觉`, 
+        '极致体验'
+      ]),
+      negativePrompt: templates.appStoreBanner.negativePrompt,
+      size: '16:9',
+    },
+    // 3. 实机玩法 (体验) - 16:9
+    {
+      id: `screen_${Date.now()}_1`,
+      type: 'screenshot' as const,
+      prompt: templates.gameplayScreenshot.basePrompt(product.name, `${gameplayStyle}，激烈的战斗瞬间`),
+      negativePrompt: templates.gameplayScreenshot.negativePrompt,
+      size: '16:9',
+    },
+    // 4. 实机玩法 (体验) - 16:9
+    {
+      id: `screen_${Date.now()}_2`,
+      type: 'screenshot' as const,
+      prompt: templates.gameplayScreenshot.basePrompt(product.name, `${gameplayStyle}，精美的场景探索`),
+      negativePrompt: templates.gameplayScreenshot.negativePrompt,
+      size: '16:9',
+    },
+  ];
 }

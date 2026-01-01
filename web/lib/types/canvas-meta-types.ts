@@ -1,8 +1,4 @@
-// ========================================
-// Canvas Node Meta 类型定义
-// 职责: 为所有节点详情组件提供类型契约
-// 设计: 消除 any，建立编译时安全保障
-// ========================================
+import { ImageAsset } from './campaign';
 
 // ----------------------------------------
 // Tactical Plan (策略计划)
@@ -73,6 +69,11 @@ export interface CreativePackData {
   scripts: Script[];
   copyVariants: string[];
   hooks: string[];
+  // Visual Assets
+  coverImages?: ImageAsset[];
+  banners?: ImageAsset[];
+  screenshots?: ImageAsset[];
+  socialCards?: ImageAsset[];
 }
 
 // ----------------------------------------
@@ -119,6 +120,7 @@ export function isCreativePackData(data: unknown): data is CreativePackData {
     Array.isArray(d.scripts) &&
     Array.isArray(d.copyVariants) &&
     Array.isArray(d.hooks)
+    // Optional fields don't strictly need validation to return true, but type system needs them in interface
   );
 }
 

@@ -58,6 +58,22 @@ export interface GeneratedAssets {
   hooks: string[];
   landingCopy: { headline: string; subhead: string; cta: string; benefits: string[] };
   sharingCopy: { title: string; desc: string };
+  
+  // 视觉资产
+  characterRef?: ImageAsset;    // 主角参考图 (New)
+  coverImages: ImageAsset[];    // 封面图（多尺寸）
+  banners: ImageAsset[];        // 横幅 Banner
+  socialCards: ImageAsset[];    // 社交分享卡片
+  screenshots: ImageAsset[];    // 游戏截图 (New)
+}
+
+export interface ImageAsset {
+  id: string;
+  url: string;
+  prompt: string;
+  type: 'cover' | 'banner' | 'social' | 'video' | 'screenshot';
+  size: '1:1' | '16:9' | '9:16';
+  status: 'pending' | 'generating' | 'done' | 'error';
 }
 
 export interface ExperimentConfig {

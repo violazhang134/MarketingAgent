@@ -31,6 +31,13 @@ export interface CanvasMeta {
   title: string;
   createdAt: string;
   updatedAt: string;
+  // 新增: 会话状态与统计
+  status?: 'running' | 'completed' | 'archived';
+  stats?: {
+    nodeCount: number;
+    competitorName?: string;
+    productName?: string;
+  };
 }
 
 export interface CanvasNode {
@@ -143,6 +150,9 @@ interface CanvasState {
   setViewMode: (mode: CanvasViewMode) => void;
   autoLayout: () => void;  // 一键整理节点位置
   
+  // 会话管理
+  createNewSession: (params?: { title?: string; competitorName?: string; productName?: string }) => string;
+  
   // 工作流辅助
   addWorkflowNode: (
     type: CanvasNodeType,
@@ -251,14 +261,16 @@ export const useCanvasStore = create<CanvasState>()(
         set({ selectedNodeId: id });
       },
 
-      resetCanvas: () =>
+      resetCanvas: () => {
+        // 重置为默认初始状态 (仅用于完全重置，不用于新任务)
         set({
-          canvases: [
+           canvases: [
             {
               id: defaultCanvasId,
               title: '默认调研画布',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
+              status: 'running',
             },
           ],
           nodes: [],
@@ -266,7 +278,44 @@ export const useCanvasStore = create<CanvasState>()(
           activeCanvasId: defaultCanvasId,
           selectedNodeId: null,
           viewport: DEFAULT_VIEWPORT,
-        }),
+        });
+      },
+
+      // ========================================
+      // 会话管理
+      // ========================================
+      createNewSession: (params) => {
+        const state = get();
+        const newId = Math.random().toString(36).slice(2, 10); // 短 ID
+        const title = params?.title || `新调研任务 ${new Date().toLocaleDateString()}`;
+        
+        const newCanvas: CanvasMeta = {
+          id: newId,
+          title,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'running',
+          stats: {
+            nodeCount: 0,
+            competitorName: params?.competitorName,
+            productName: params?.productName,
+          }
+        };
+
+        // 归档旧画布 (可选: 标记状态)
+        const updatedCanvases = state.canvases.map(c => 
+          c.id === state.activeCanvasId ? { ...c, status: 'archived' as const } : c
+        );
+
+        set({
+          canvases: [...updatedCanvases, newCanvas],
+          activeCanvasId: newId,
+          viewport: DEFAULT_VIEWPORT, // 重置视图
+          // 注意: 不清除 nodes，保留历史。partialize 会处理数量限制。
+        });
+
+        return newId;
+      },
 
       // ========================================
       // Viewport 控制
@@ -547,9 +596,10 @@ export const useCanvasStore = create<CanvasState>()(
       name: 'marketing-agent-canvas-storage',
       // P1 修复: 限制持久化的节点/边数量，防止 localStorage 超限
       partialize: (state) => {
-        // 最多保留最近的 200 个节点和 300 条边
-        const MAX_NODES = 200;
-        const MAX_EDGES = 300;
+        // P1 优化: 提高限制以容纳历史会话 (600 nodes)
+        // 假设每个任务约 50 个节点，可存最近 12 个任务
+        const MAX_NODES = 600;
+        const MAX_EDGES = 800;
         
         const limitedNodes = state.nodes.length > MAX_NODES 
           ? state.nodes.slice(-MAX_NODES) // 保留最新的节点

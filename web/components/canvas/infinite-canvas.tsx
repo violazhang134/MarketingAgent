@@ -274,10 +274,10 @@ export function InfiniteCanvas({
               />
             ))}
           </AnimatePresence>
+          
+          {/* AI 精灵 (必须在 pointer-events-auto 容器内才能响应点击) */}
+          <CanvasMarkie />
         </div>
-
-        {/* AI 精灵 */}
-        <CanvasMarkie />
       </div>
 
       {/* 空状态提示 */}

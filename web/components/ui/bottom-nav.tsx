@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Home, Zap, Rocket, BookOpen, LayoutDashboard } from "lucide-react";
+import { Home, Rocket, BookOpen, LayoutDashboard, Wand2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/stores/app-store";
@@ -9,7 +9,7 @@ import { useAppStore } from "@/lib/stores/app-store";
 const NAV_ITEMS = [
   { id: 'home', label: 'Home', icon: Home, path: '/' },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { id: 'agent', label: 'Agent', icon: Zap, path: '/agent' },
+  { id: 'studio', label: 'Studio', icon: Wand2, path: '/studio' },
   { id: 'feed', label: 'Decisions', icon: Rocket, path: '/feed' },
   { id: 'playbook', label: 'Playbook', icon: BookOpen, path: '/playbook' },
 ];

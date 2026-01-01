@@ -103,6 +103,11 @@ export function NodeContentRenderer({ node, compact = false }: NodeContentRender
         scripts: meta.scripts,
         copyVariants: meta.copyVariants,
         hooks: meta.hooks,
+        // Fix: Pass visual assets to UI
+        coverImages: meta.coverImages,
+        banners: meta.banners,
+        screenshots: meta.screenshots,
+        socialCards: meta.socialCards,
       };
       
       if (isCreativePackData(packData)) {

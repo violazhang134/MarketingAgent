@@ -280,20 +280,20 @@ export function PixelCharacter({ variant, state, isFlipped, label }: PixelCharac
     poked: {
       scale: [1, 1.3, 0.9, 1.1, 1],
       rotate: [0, 15, -15, 5, 0],
-      transition: { duration: 0.5, type: "spring", stiffness: 300 }
+      transition: { duration: 0.5, type: "tween", ease: "easeOut" } // spring不支持多关键帧
     },
     bump: { 
       x: [0, -5, 5, 0],
       rotate: [0, -10, 10, 0],
       scale: [1, 0.9, 1.1, 1],
-      transition: { duration: 0.4 }
+      transition: { duration: 0.4, type: "tween", ease: "easeInOut" }
     }
   };
 
   const currentAnim = state; // Directly use passed state which now includes 'bump' 
 
   return (
-    <div className="relative flex flex-col items-center justify-end pointer-events-none">
+    <div className="relative flex flex-col items-center justify-end">
       {/* 像素角色容器 */}
       <motion.div
         variants={containerVariants}

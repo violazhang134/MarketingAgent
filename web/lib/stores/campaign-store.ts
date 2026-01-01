@@ -10,7 +10,9 @@ import {
 } from '../engines/comment-analyzer';
 import { 
   generateCreativeAssets, 
-  generateExperimentPack 
+  generateExperimentPack,
+  generateMarketingImagePrompts,
+  generateCharacterPrompt
 } from '../engines/creative-engine';
 import { useCanvasStore } from './canvas-store';
 
@@ -21,6 +23,7 @@ import type {
   ExperimentConfig,
   ExperimentPack,
   GeneratedAssets,
+  ImageAsset,
   Message,
   PlaybookEntry,
   ProductProfile,
@@ -104,7 +107,8 @@ const INITIAL_STEPS: AgentStep[] = [
   { id: 'trends', label: '分析趋势内容', status: 'pending' },
   { id: 'comments', label: '解析用户评论', status: 'pending' },
   { id: 'strategy', label: '生成差异化策略', status: 'pending' },
-  { id: 'creative', label: '创建广告素材', status: 'pending' },
+  { id: 'creative', label: '创建广告文案', status: 'pending' },
+  { id: 'visual', label: '生成美宣素材', status: 'pending' },
 ];
 
 // ========================================
@@ -164,8 +168,12 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
     const canvasStore = useCanvasStore.getState();
     
-    // 重置画布，开始新流程
-    canvasStore.resetCanvas();
+    // P1 优化: 创建新会话而不是重置，保留历史
+    canvasStore.createNewSession({ 
+      title: `${competitorName} vs ${productName}`,
+      competitorName,
+      productName 
+    });
 
     set({ 
       phase: 'running', 
@@ -450,7 +458,118 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
       detailComponent: 'CreativePackView',
     });
 
-    updateStep('creative', { status: 'done', message: '素材生成完成' });
+    updateStep('creative', { status: 'done', message: '文案生成完成' });
+    
+    // ========================================
+    // Step 2.5: 生成视觉美宣素材 (Visual Assets) - 2 Stage
+    // ========================================
+    updateStep('visual', { status: 'running' });
+    
+    const imageAssets: ImageAsset[] = [];
+    let charRefUrl = '';
+
+    // Stage 1: Generate Character Reference
+    try {
+      canvasStore.updateNode(creativePackNode.id, {
+        summary: `正在生成主角设定图 (Stage 1/2)...`,
+      });
+
+      const charReq = generateCharacterPrompt(product, strategy);
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: charReq.prompt,
+          negativePrompt: charReq.negativePrompt,
+          size: charReq.size,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.images?.[0]) {
+        // Fix: Use Remote URL for API Consistency (img2img needs public URL), Local URL for UI
+        charRefUrl = data.images[0]; // Local path for UI
+        const charRefRemoteUrl = data.remoteImages?.[0] || charRefUrl; // Remote path for API
+        
+        // Construct the Asset Object
+        const charAsset: ImageAsset = {
+          id: charReq.id,
+          url: charRefUrl,
+          prompt: charReq.prompt,
+          type: 'screenshot', // Keep type compatible
+          size: charReq.size,
+          status: 'done',
+        };
+
+        // 1. Array Storage (for backward compatibility/list view)
+        imageAssets.push(charAsset);
+
+        // 2. Explicit Source of Truth
+        assets.characterRef = charAsset;
+        
+        console.log('✅ Character Ref Generated:', charRefUrl, 'Remote:', charRefRemoteUrl);
+      
+        // Stage 2: Generate Batch Assets (with Remote Ref)
+        const imageRequests = generateMarketingImagePrompts(product, strategy, assets.hooks, charRefRemoteUrl); // Use REMOTE URL here
+    
+        // 串行生成以确保稳定性 (MVP)
+        for (const req of imageRequests) {
+          try {
+            canvasStore.updateNode(creativePackNode.id, {
+              summary: `正在生成 ${req.type} ...\n(Stage 2/2)`,
+            });
+
+            // 调用真实 API
+            const response = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: req.prompt,
+                negativePrompt: req.negativePrompt,
+                size: req.size,
+                image_url: charRefRemoteUrl || undefined, // Pass REMOTE reference image
+              }),
+            });
+
+        const data = await response.json();
+        
+        if (data.success && data.images?.[0]) {
+          imageAssets.push({
+            id: req.id,
+            url: data.images[0],
+            prompt: req.prompt,
+            type: req.type,
+            size: req.size,
+            status: 'done',
+          });
+        }
+      } catch (error) {
+        console.error(`[Visual] Network error for ${req.type}:`, error);
+      }
+    }
+  } // Close if (data.success)
+  } catch (error) {
+    console.error(`[Workflow] Char Ref gen failed:`, error);
+  }
+    
+  // 更新 Assets
+  assets.coverImages = imageAssets.filter(i => i.type === 'cover');
+  assets.banners = imageAssets.filter(i => i.type === 'banner');
+  assets.screenshots = imageAssets.filter(i => i.type === 'screenshot');
+    // assets.socialCards = []; // 不再生成单独的 socialCards，由 Screenshot/Cover 代替
+
+    // 更新节点以展示图片结果 (Fix: Ensure data is passed to UI)
+    canvasStore.updateNode(creativePackNode.id, {
+      summary: `• 视频脚本 x${assets.scripts.length}\n• 视觉素材 x${imageAssets.length} (2x Promo, 2x Gameplay)\n• 广告文案 x${assets.copyVariants.length}`,
+      detailComponent: 'CreativePackView',
+      meta: {
+        competitorName,
+        productName,
+        ...assets // Pass updated assets including visual arrays
+      }
+    });
+
+    updateStep('visual', { status: 'done', message: `生成 ${imageAssets.length} 张美宣图` });
     updateStep('experiment', { status: 'running' });
 
     // ========================================

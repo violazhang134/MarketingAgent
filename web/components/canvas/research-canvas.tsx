@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useCanvasStore } from '@/lib/stores/canvas-store';
 import { useCampaignStore } from '@/lib/stores/campaign-store';
-import { CompetitorReportView } from '@/components/report/competitor-report-view';
+import { NodeContentRenderer } from './node-content-renderer';
 
 export function ResearchCanvas() {
   const { 
@@ -113,16 +113,8 @@ export function ResearchCanvas() {
                 ×
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
-              <CompetitorReportView
-                gameName={
-                  previewNode.meta?.competitorName ||
-                  competitorName ||
-                  '示例竞品'
-                }
-                onGenerateClone={generateAssetsWorkflow}
-                showGenerateButton={true}
-              />
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+              <NodeContentRenderer node={previewNode} />
             </div>
           </div>
         </div>
